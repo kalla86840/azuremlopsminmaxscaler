@@ -1,0 +1,39 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: CI
+  jobs:
+  - job: BuildTrainRegister
+    steps:
+    - script: |
+        pip install -r requirements.txt
+      displayName: 'Install requirements'
+    - script: |
+        python ci/preprocess.py
+        python ci/train.py
+        python ci/register_model.py
+        python ci/metrics.py
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: 'ci/metrics_report.txt'
+        ArtifactName: 'metrics_report'
+        publishLocation: 'Container'
+      displayName: 'Run CI pipeline'
+
+- stage: CD
+  dependsOn: CI
+  condition: succeeded()
+  jobs:
+  - job: DeployModel
+    steps:
+    - script: |
+        pip install -r requirements.txt
+      displayName: 'Install requirements for CD'
+    - script: |
+        python cd/deploy.py
+      displayName: 'Deploy model to production endpoint'
